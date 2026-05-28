@@ -20,7 +20,7 @@ Both parties speak their own language. The call moves forward.
 
 Early planning and architecture phase. First implementation targeting controlled pilot on administrative lines at a real PSAP.
 
-Detailed architecture documentation, stack decisions, and CJIS compliance considerations are in active development and will be published to `docs/` prior to first code commit.
+Architecture documentation and CJIS compliance considerations are published in [`docs/`](docs/) — see [**Architecture**](docs/ARCHITECTURE.md) and [**CJIS Considerations**](docs/CJIS-CONSIDERATIONS.md). These describe the intended design and the reasoning behind it, ahead of implementation.
 
 ## Background
 
@@ -39,8 +39,8 @@ Nothing in this section is legal advice or a compliance certification.
 
 ## Roadmap
 
-- [ ] Architecture and stack documentation
-- [ ] CJIS compliance considerations doc
+- [x] Architecture and stack documentation
+- [x] CJIS compliance considerations doc
 - [ ] v0.1 prototype: inbound STT + English transcript display
 - [ ] v0.2: outbound TTS translation back to caller
 - [ ] Admin line pilot at partner PSAP
