@@ -26,6 +26,17 @@ Detailed architecture documentation, stack decisions, and CJIS compliance consid
 
 ClearComm911 is built by a DOCJT-certified former 911 telecommunicator with six years deploying mission-critical communications infrastructure for public safety, utility, and federal customers. This is not a solution designed from the outside looking in.
 
+## Data Handling & Privacy
+
+ClearComm911 is designed around the principle that the agency owns its data and that sensitive call content should leave the PSAP network only when, and only as far as, an agency explicitly permits. These commitments guide the architecture:
+
+- **No retention of caller audio.** Audio is processed in real time and is not stored after the session. Any audit logging captures transcript and translation metadata, not recorded audio, and remains under the agency's control.
+- **No training on customer data.** Caller audio, transcripts, and translations are never used to train models.
+- **Network-boundary awareness.** The architecture is explicitly designed so that what data crosses the PSAP network boundary — and to which processor — is a deliberate, documented configuration choice, including a path where audio never leaves the agency network.
+- **CJIS posture.** We treat CJIS Security Policy alignment as a first-class requirement and are willing to execute a CJIS Security Addendum with agencies and their state CJIS Systems Agency for production deployments.
+
+Nothing in this section is legal advice or a compliance certification.
+
 ## Roadmap
 
 - [ ] Architecture and stack documentation
@@ -37,7 +48,7 @@ ClearComm911 is built by a DOCJT-certified former 911 telecommunicator with six 
 
 ## Contributing
 
-ClearComm911 is open source under the MIT license. Contribution guidelines will be published alongside the first implementation. If you work in public safety, dispatch, or PSAP technology and want to be involved early, open an issue or reach out directly.
+ClearComm911 is open source under the Apache License 2.0. Contribution guidelines will be published alongside the first implementation. If you work in public safety, dispatch, or PSAP technology and want to be involved early, open an issue or reach out directly.
 
 ## Contact
 

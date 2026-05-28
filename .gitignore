@@ -1,6 +1,9 @@
 # Internal planning docs — never committed
 internal-docs/
 
+# Local Claude Code settings — never committed
+.claude/settings.local.json
+
 # Environment
 .env
 .env.local
