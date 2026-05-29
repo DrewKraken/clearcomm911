@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "clearcomm911"
+version = "0.1.0.dev0"
+description = "Real-time language translation for 911 dispatch"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Drew Swanigan" }]
+keywords = ["911", "psap", "dispatch", "translation", "speech-to-text"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Other Audience",
+    "Programming Language :: Python :: 3",
+    "Topic :: Communications :: Telephony",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.11"]
+
+[project.urls]
+Homepage = "https://github.com/DrewKraken/clearcomm911"
+Documentation = "https://github.com/DrewKraken/clearcomm911/tree/main/docs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/clearcomm"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

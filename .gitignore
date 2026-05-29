@@ -16,6 +16,12 @@ __pycache__/
 .venv/
 venv/
 
+# Python tooling caches & build artifacts
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
 # Build output
 dist/
 build/
