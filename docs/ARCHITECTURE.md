@@ -68,11 +68,12 @@ Caller audio ─▶ Voice activity detection ─▶ Speech-to-text ─▶ Transl
                                                                    └─▶ Audit log
 ```
 
-**Dispatcher → caller (the return path).** The dispatcher speaks or types a response, which is
-translated and voiced back to the caller.
+**Dispatcher → caller (the return path).** The dispatcher's response is translated for the caller.
+This direction supports two modes, chosen per deployment (see §9):
 
 ```
-Dispatcher speech/text ─▶ Translation ─▶ Speech synthesis ─▶ Caller audio
+Dispatcher input ─▶ Translation ─┬▶ on-screen reply + pronunciation guide (dispatcher voices it)
+                                 └▶ speech synthesis ─▶ caller audio (system voices it)
 ```
 
 A browser-based dispatcher console renders the live transcript — interim results as they stream,
@@ -101,6 +102,24 @@ code and interfaces and differ only in where processing happens:
 The pilot tier exists to learn fast on lower-stakes traffic. The production tier is what an agency
 can actually run on live calls. Treating these as one architecture — same interfaces, swappable
 implementations — is what lets the project move quickly without designing itself into a corner.
+
+### Two deployment profiles
+
+Where production processing happens is not a single answer — it is a per-agency choice, because the
+market is genuinely split. Some agencies are adopting cloud call-handling; others deliberately keep
+infrastructure on-premises for cost or control. ClearComm911 supports both as first-class profiles,
+selectable by configuration rather than by a code fork:
+
+- **Profile A — audio stays on-premises (default).** Speech-to-text runs inside the agency network;
+  caller audio never leaves it. The most defensible data-handling posture, and — because it relies
+  on self-hosted models — the one with no per-call service cost.
+- **Profile B — compliant cloud.** For agencies that permit audio to leave for a compliant
+  government-cloud environment, cloud speech services can be used for lower latency. When any cloud
+  step is used on live traffic, the pipeline stays within a **single** compliant environment rather
+  than chaining services across providers (see [CJIS-CONSIDERATIONS.md](CJIS-CONSIDERATIONS.md)).
+
+Production is therefore not synonymous with "on-premises" or with "cloud" — it is whichever profile
+an agency's requirements call for, on the same codebase.
 
 ---
 
@@ -135,21 +154,43 @@ the pipeline.
 This is the part of the architecture most specific to life-safety use, and the part where being
 careful matters more than being clever.
 
+**Calibrated honesty is the governing principle.** No system is ever perfectly accurate — not
+deterministic machine translation, not the speech-to-text beneath it, not even a live human
+interpreter. They all mishear and misrender sometimes. So the goal is not to promise perfect output;
+that goal produces systems that hide their uncertainty in order to *look* confident. The failure
+mode that costs lives is not error itself — it is **undetected error presented as certainty.**
+ClearComm911 is therefore designed to never present information to a dispatcher as more certain than
+it is: where it is confident, it shows that plainly; where it is not, it flags it; critical details
+get explicit verification; the caller's original words are always available as ground truth; and a
+human interpreter is always one escalation away.
+
 **Deterministic machine translation is the authoritative path.** The translation a dispatcher acts
 on, and any translation voiced back to a caller, comes from a translation model whose behavior is
-consistent and reviewable. This is the text that drives the spoken output. Faithfulness and
+consistent and reviewable. This is the text that drives any spoken output. Faithfulness and
 predictability are the priority on this path.
 
-**Large language models, if used, are display-only context — never the spoken output.** An LLM can
-add helpful context for ambiguous or fragmented speech, but it can also rephrase, soften, or omit
-in ways that are unacceptable when a "not" dropped from "not breathing" changes the meaning. Any
-such assistance is clearly labeled as context for the dispatcher to weigh, is visually separated
-from the authoritative translation, and is architecturally prevented from reaching the
-speech-synthesis path. This separation is enforced in the pipeline structure, not by convention.
+**Large language models, if used, are display-only context — never the authoritative or spoken
+output.** An LLM can add helpful context for ambiguous or fragmented speech, but it can also
+rephrase, soften, or omit in ways that are unacceptable when a "not" dropped from "not breathing"
+changes the meaning. Any such assistance is clearly labeled as context, visually separated from the
+authoritative translation, never auto-populated into the dispatcher's outgoing message, and
+architecturally prevented from reaching the speech-synthesis path. This separation is enforced in
+the structure of the pipeline — not by policy or by a comment.
 
-**Addresses and critical details get explicit confirmation.** Locations, names, and numbers are the
-highest-risk content in a dispatch call. The console surfaces translated addresses for the
-dispatcher to confirm by read-back before they are relied upon.
+**Uncertainty is surfaced, not smoothed over.** Low-confidence transcription and translation
+segments are visually flagged rather than rendered as silent, confident guesses. Critical content —
+weapons, addresses, numbers, names, medical terms — is identified and surfaced prominently, and
+numbers and proper nouns are preserved as literally as possible to shrink the surface that
+translation can corrupt. When confidence is low or a component fails, the console shows "uncertain"
+or "unavailable" rather than a confident-looking wrong answer.
+
+**The design reinforces how dispatchers already work.** Trained call-takers already confirm critical
+details by reading them back — "okay, what's happening at 123 Lane Drive?" That repeat-back is
+established life-safety practice, and ClearComm911 leans on it rather than replacing it: translated
+addresses and other critical entities are surfaced for read-back before they are relied upon. This
+adds no new habit for the dispatcher, and it does double duty — the same read-back that confirms the
+detail with the caller is also what catches a mistranscription, because the caller hears it and can
+correct it.
 
 **A human interpreter remains the backstop.** ClearComm911 assists the dispatcher; it does not
 remove the option of a human interpreter. For any call where the stakes or the uncertainty warrant
@@ -160,21 +201,26 @@ an afterthought.
 
 ## 7. Latency budget
 
-Targets are expressed per direction, because the two paths have different tolerances. These are
-design targets to validate against real telephony audio, not measured results.
+The governing principle is simple: be **dramatically faster than the status quo** it replaces — a
+third-party interpreter conference, which typically costs 40 seconds or more just to connect — and,
+above that floor, aim for conversational pacing. Equally important, the system **never waits
+silently**: if a turn exceeds its ceiling, the dispatcher sees a visible "working…" state, never a
+frozen screen.
 
-| Path | Target | Notes |
-|---|---|---|
-| Caller → dispatcher, interim text on screen | ~½ second | Dispatcher sees the caller's words forming in near real time |
-| Caller → dispatcher, committed translation | ~1–1.5 seconds | Stable translated segment the dispatcher can act on |
-| Dispatcher → caller, audio begins | ~2 seconds | From dispatcher input to the caller hearing the response |
+Targets differ by deployment profile, because on-premises models trade some latency for keeping
+audio inside the agency network — an explicit, documented trade-off, not a hidden one. These are
+design targets to validate against real 8 kHz telephony audio, not measured results or promises.
+
+| Path | Cloud profile | On-premises profile | Ceiling |
+|---|---|---|---|
+| Caller → dispatcher, interim text | ≤ 0.5 s | ≤ 1.5 s | — |
+| Caller → dispatcher, committed translation | ≤ 1.5 s | ≤ 2.5 s | beyond 3 s → show "working…", treat as degraded |
+| Dispatcher → caller, audio begins | ≤ 2 s | ≤ 3 s | — |
 
 The streaming design exists to hit these. Interim transcript is shown to the dispatcher
 immediately; translation is triggered on stable segment boundaries rather than on every partial, to
-avoid translations that flicker and rewrite themselves. The achievable numbers differ between the
-two deployment tiers — on-premises models trade some latency for keeping audio inside the agency
-network — and the architecture treats that trade-off as an explicit, documented choice rather than
-hiding it.
+avoid translations that flicker and rewrite themselves. The on-premises numbers in particular will
+be finalized only after measurement on real telephony audio.
 
 ---
 
@@ -215,12 +261,29 @@ Two integration mechanisms correspond to the two tiers:
   use. This positions ClearComm911 as a recognized category of integration that agencies know how
   to authorize, with no disruption to the call path.
 
-**Open design question (honestly flagged):** the passive recording feed delivers audio *to* the
-pipeline but does not, by itself, provide a path to inject synthesized audio *back* into a live
-call. The return (dispatcher → caller voice) path in a production deployment therefore depends on an
-additional mechanism — for example a conference bridge — that must be designed with the agency's
-telephony environment. The first version sidesteps this entirely by scoping to the inbound
-direction only (see §12).
+### Getting the dispatcher's response to the caller
+
+Hearing the caller is solved the same way in every deployment. Voicing the dispatcher's response
+back is where deployments differ, because a passive recording feed delivers audio *to* the pipeline
+but cannot, by design, inject audio *back* into a live call — that passivity is exactly what makes it
+non-invasive and easy to authorize. The return direction therefore has two modes:
+
+- **Coached response.** The system shows the dispatcher the translated reply as text with
+  pronunciation guidance, and the dispatcher voices it to the caller over the call they are already
+  on. This needs no audio injection at all, works in every deployment including a passive recording
+  feed, and adds no risk to the call. It is well suited to languages a dispatcher can reasonably
+  pronounce.
+- **Direct voiced translation.** The system synthesizes the translated reply and plays it to the
+  caller directly. This is more natural and scales to languages a dispatcher cannot pronounce, but it
+  requires ClearComm911 to be in the call's media path (a bridge), designed so that a failure on our
+  side can never drop the call.
+
+Which mode a deployment uses depends on its telephony environment and the languages it serves. The
+direct-voiced path in a passive-feed production deployment is the one genuinely
+partner-dependent piece, and it is designed together with the first production agency rather than
+assumed on paper. The pilot, which already bridges the call, can demonstrate the full two-way loop
+before that production case is solved — and the first version sidesteps the question entirely by
+scoping to the inbound direction only (see §12).
 
 ---
 
@@ -271,8 +334,13 @@ The project is built in deliberate increments, each independently useful and ver
 - **Beyond.** In-boundary/production deployment via the standards-based recording feed,
   per-language model expansion, and the operational tooling agencies need to run it on live traffic.
 
-Spanish is the first supported language, reflecting where the need is largest; additional languages
-follow.
+The architecture is language-agnostic — the transcription, translation, and synthesis interfaces are
+parameterized by language, and adding one is a configuration and model change, not a redesign.
+Spanish is the first supported language because the need is largest there (the majority of limited-
+English-proficiency residents), not because anything is built around it; additional languages follow
+and each is validated on its own. The return-mode choice in §9 is coupled to this: coached response
+fits languages a dispatcher can pronounce, while harder-to-pronounce languages lean on direct voiced
+translation.
 
 ---
 
@@ -280,17 +348,17 @@ follow.
 
 Recorded honestly, because a credible architecture names what it has not yet resolved:
 
-- **On-premises latency vs. targets.** Keeping speech-to-text inside the agency network (production
-  tier) is the stronger data-handling posture but adds latency relative to the §7 targets. The
-  acceptable trade-off needs measurement on real telephony audio and an explicit decision.
-- **Return-path audio in production.** The mechanism for voicing the dispatcher's response back into
-  a live call under the passive-recording integration (§9) is unresolved and will be designed with a
-  pilot agency's telephony environment.
-- **Single-environment processing for production.** When any cloud processing is used on live
-  traffic, keeping it within one compliant environment is cleaner than spanning multiple services;
-  the production configuration should reflect that.
+- **On-premises latency, exact numbers.** The §7 targets are set, but the on-premises figures depend
+  on how self-hosted models behave on real narrowband telephony audio. They will be confirmed by
+  measurement, not assumed.
+- **Direct voiced translation in a passive-feed production deployment.** The two return modes are
+  defined (§9), but injecting synthesized audio into a live call under a passive recording feed is
+  partner-dependent and will be designed with the first production agency's telephony environment.
 - **Per-language model quality.** Self-hosted model quality varies by language and by the realities
-  of narrowband phone audio; each added language needs validation rather than assumption.
+  of narrowband phone audio; each added language is validated rather than assumed.
+- **Language selection.** Whether the system auto-detects the caller's language or the dispatcher
+  selects it is an open user-experience question, likely resolved with input from working
+  dispatchers.
 
 These are tracked and will be resolved with measurement and with the input of partner agencies, not
 settled prematurely on paper.
