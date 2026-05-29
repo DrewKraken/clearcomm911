@@ -20,7 +20,17 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.11"]
+audio = ["numpy>=2.0", "soundfile>=0.12", "scipy>=1.13"]
+whisper = ["faster-whisper>=1.1"]
+benchmark = ["jiwer>=3.0"]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "numpy>=2.0",
+    "soundfile>=0.12",
+    "scipy>=1.13",
+]
 
 [project.urls]
 Homepage = "https://github.com/DrewKraken/clearcomm911"
@@ -41,6 +51,10 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 python_version = "3.11"
 strict = true
 files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["soundfile", "scipy.*", "faster_whisper", "jiwer"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
