@@ -22,7 +22,8 @@ classifiers = [
 [project.optional-dependencies]
 audio = ["numpy>=2.0", "soundfile>=0.12", "scipy>=1.13"]
 whisper = ["faster-whisper>=1.1"]
-benchmark = ["jiwer>=3.0"]
+translate = ["argostranslate>=1.9"]
+benchmark = ["jiwer>=3.0", "sacrebleu>=2.4"]
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
@@ -53,7 +54,7 @@ strict = true
 files = ["src", "tests"]
 
 [[tool.mypy.overrides]]
-module = ["soundfile", "scipy.*", "faster_whisper", "jiwer"]
+module = ["soundfile", "scipy.*", "faster_whisper", "jiwer", "argostranslate.*", "sacrebleu"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
