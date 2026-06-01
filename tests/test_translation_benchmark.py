@@ -6,8 +6,14 @@ and the result type that CI can verify with a fake translator.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from clearcomm.interfaces import Translator
-from clearcomm.translation_benchmark import TranslationBenchmarkResult, translate_lines
+from clearcomm.translation_benchmark import (
+    TranslationBenchmarkResult,
+    _read_lines,
+    translate_lines,
+)
 from clearcomm.types import AuthoritativeTranslation, TranscriptSegment
 
 
@@ -56,3 +62,9 @@ def test_result_holds_scores() -> None:
     result = TranslationBenchmarkResult(chrf=62.5, bleu=41.0)
     assert result.chrf == 62.5
     assert result.bleu == 41.0
+
+
+def test_read_lines_keeps_blank_lines_so_parallel_files_stay_aligned(tmp_path: Path) -> None:
+    path = tmp_path / "lines.txt"
+    path.write_text("first\n\nthird\n", encoding="utf-8")
+    assert _read_lines(path) == ["first", "", "third"]

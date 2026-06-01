@@ -56,7 +56,13 @@ class TranslationBenchmarkResult:
 
 
 def _read_lines(path: Path) -> list[str]:
-    return [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    """Read a file into stripped lines, keeping blanks so source and reference stay aligned.
+
+    Dropping blank lines independently from each file would shift every later line out of
+    correspondence with its translation, silently scoring hypotheses against the wrong references.
+    The count check in :func:`run_benchmark` then catches a genuine length mismatch loudly.
+    """
+    return [line.strip() for line in path.read_text(encoding="utf-8").splitlines()]
 
 
 def run_benchmark(
