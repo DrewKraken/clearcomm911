@@ -2,8 +2,8 @@
 
 Each stage is defined as an abstract base class so that a concrete provider — cloud or
 self-hosted — can be selected by configuration without changing the pipeline. v0.1 implements the
-inbound path (transcription and translation); the synthesis contract for the return path arrives
-with v0.2.
+inbound path (audio source, transcription, and translation); the synthesis contract for the return
+path arrives with v0.2.
 """
 
 from __future__ import annotations
@@ -12,6 +12,20 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 
 from .types import AudioFrame, AuthoritativeTranslation, TranscriptSegment
+
+
+class AudioSource(ABC):
+    """A source of call audio for the pipeline.
+
+    Yields :class:`~clearcomm.types.AudioFrame` in capture order. Whatever produces the stream — a
+    recorded file in development, a microphone, or a telephony bridge in production — sits behind
+    this one contract, so the pipeline is indifferent to where its audio originates.
+    """
+
+    @abstractmethod
+    def frames(self) -> AsyncIterator[AudioFrame]:
+        """Yield audio frames until the source is exhausted."""
+        raise NotImplementedError
 
 
 class Transcriber(ABC):
